@@ -118,6 +118,7 @@ class SirModels:
         self.delay_time = None
         self.inertial_time = None
         self.vaccination_rate = None
+        self.vaccination_effectiveness = None
         self.t_vaccination = None
 
         self.total_population = n_total
@@ -151,12 +152,15 @@ class SirModels:
             alpha: float,
             q: Union[float, np.array] = 0,
             t_vaccination: float = None,
-            vaccination_rate: float = None
+            vaccination_rate: float = None,
+            vaccination_effectiveness: float = None
     ):
         (s, i, r, v) = z
-        vaccinated = (time > t_vaccination if t_vaccination else 0) * \
-                     (vaccination_rate if vaccination_rate else 0) * \
-                     self.total_population
+        vaccinated = \
+            (time > t_vaccination if t_vaccination else 0) * \
+            (vaccination_rate if vaccination_rate else 0) * \
+            (vaccination_effectiveness if vaccination_effectiveness else 0) * \
+            self.total_population
 
         ds = (q - 1) * beta * s * i / self.total_population - vaccinated
         di = (1 - q) * beta * s * i / self.total_population - alpha * i
@@ -177,9 +181,12 @@ class SirModels:
                     self.measure_init,
                     measure_maturity, measure_scale,
                     self.delay_time, self.inertial_time)
-        (ds, di, dr, dv) = self._sir_flow(z, time, beta, alpha, q,
-                                      t_vaccination=self.t_vaccination,
-                                      vaccination_rate=self.vaccination_rate)
+        (ds, di, dr, dv) = self._sir_flow(
+            z, time, beta, alpha, q,
+            t_vaccination=self.t_vaccination,
+            vaccination_rate=self.vaccination_rate,
+            vaccination_effectiveness=self.vaccination_effectiveness
+        )
         return np.array([ds, di, dr, dv])
 
     # endregion
