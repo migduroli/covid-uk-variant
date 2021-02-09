@@ -40,5 +40,6 @@ for v in vaccination_rates:
         third_wave=True,
         inset_plot=True,
         vaccination_rate=v,
-        vaccination_begins=360
+        vaccination_begins=360,
+        vaccination_effectiveness=0.5
     )
