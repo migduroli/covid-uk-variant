@@ -8,7 +8,7 @@ from toolbox.model import (SirModels, SirModelType, PredictionTarget, read_data)
 from mpl_toolkits.axes_grid.inset_locator import (InsetPosition)
 
 TIME_INITIAL = date(2020, 1, 1)
-TIME_END = date(2021, 1, 21)
+TIME_END = date(2021, 2, 8)
 TIME_ARROW = [
     (TIME_INITIAL + timedelta(days=x)).strftime('%Y-%m-%d')
     for x in range((TIME_END - TIME_INITIAL).days + 1)
@@ -47,7 +47,8 @@ def fit_model(
         model_type: SirModelType,
         prediction_target: PredictionTarget,
         vaccination_rate: float,
-        vaccination_begins: float
+        vaccination_begins: float,
+        vaccination_effectiveness: float,
 ):
 
     df = read_data(
@@ -79,6 +80,7 @@ def fit_model(
     m.bounds = bounds
     m.vaccination_rate = vaccination_rate
     m.t_vaccination = vaccination_begins
+    m.vaccination_effectiveness = vaccination_effectiveness
 
     if model_type == SirModelType.Controlled:
         m.control_delay = control_delay
@@ -160,8 +162,8 @@ def make_plot(
 
     train_idx = x_total.tolist().index(x_train[-1])
     total_idx = dt.tolist().index(x_total[-1])
-    ax.plot(time_offset + x_train, y_train, 'bo', alpha=0.25)
-    ax.plot(time_offset + x_total[train_idx:], y_total[train_idx:], 'ro', alpha=0.25)
+    ax.bar(time_offset + x_train, y_train, color='b', alpha=0.4)
+    ax.bar(time_offset + x_total[train_idx:], y_total[train_idx:], color='red', alpha=0.4)
 
     ax.plot(time_offset + x_total, z[:total_idx+1], '-', color='darkturquoise')
     ax.plot(time_offset + dt[total_idx:], z[total_idx:], '--', color='darkturquoise')
@@ -189,17 +191,17 @@ def make_plot(
             limits = [0, int(0.75 * train_idx)]
             ax_inset.set_xticks(x_axis[:8:2])
             ax_inset.set_xticklabels(months[:8:2], rotation=90)  # plt.show()
-            color_style = 'bo'
+            color_style = 'blue'
         if third_wave:
-            color_style = 'ro'
+            color_style = 'red'
             limits = [train_idx, total_idx]
             ax_inset.set_xticks(x_axis[10:-1:2])
             ax_inset.set_xticklabels(months[10::2], rotation=90)  # plt.show()
 
-        ax_inset.plot(
+        ax_inset.bar(
             time_offset + dt[limits[0]: limits[1]],
             y_total[limits[0]: limits[1]],
-            color_style, alpha=0.25)
+            color=color_style, alpha=0.4)
         ax_inset.plot(
             time_offset + dt[limits[0]:limits[1]],
             z[limits[0]: limits[1]],
@@ -218,7 +220,8 @@ def run(model_type: SirModelType,
         third_wave: bool = False,
         inset_plot: bool = False,
         vaccination_rate: float = None,
-        vaccination_begins: float = None
+        vaccination_begins: float = None,
+        vaccination_effectiveness: float = None,
         ):
 
     if model_type == SirModelType.Controlled:
@@ -243,7 +246,8 @@ def run(model_type: SirModelType,
         n_peaks=1,
         prediction_target=prediction_target,
         vaccination_rate=vaccination_rate,
-        vaccination_begins=vaccination_begins
+        vaccination_begins=vaccination_begins,
+        vaccination_effectiveness=vaccination_effectiveness,
     )
 
     model: SirModels = opt['model']
