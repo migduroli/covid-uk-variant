@@ -1,6 +1,6 @@
 ## Summary
  This repository contains the code required for the analysis of the manuscript:
-_Understanding soaring coronavirus cases and the effect of contagion policies in the UK_.
+[Understanding soaring coronavirus cases and the effect of contagion policies in the UK](https://doi.org/10.1101/2021.01.30.21250822).
 
 The running of the script `main.py` will produce the figures showed in the manuscript.
 These figures will be saved in PDF format inside the [figs](figs) folder.
