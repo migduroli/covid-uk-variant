@@ -331,7 +331,7 @@ class SirModels:
     def _compute_error_from_trajectory(self, s, i, r):
         return np.sqrt(
             np.square(s * i * self.beta_err / self.total_population)
-            + 2 * np.sqrt(i * self.alpha_err)
+            + 2 * np.square(i * self.alpha_err)
         )
 
     def _get_confidence_intervals(self, dt):
@@ -344,7 +344,7 @@ class SirModels:
         )
 
         sigma = self._compute_error_from_trajectory(s=z[:, 0], i=z[:, 1], r=z[:, 2])
-        return [3 * sigma, - 3 * sigma]
+        return [3 * sigma, -3 * sigma]
 
     def add_confidence_intervals(self, dt, z, ax, time_offset=None, limits=None):
         conf_interval = self._get_confidence_intervals(dt)

@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from toolbox.config import (Config)
 from datetime import (date, timedelta)
 from toolbox.date_params import (Months)
 from toolbox.model import (SirModels, SirModelType, PredictionTarget, read_data)
 from mpl_toolkits.axes_grid.inset_locator import (InsetPosition)
 
 TIME_INITIAL = date(2020, 1, 1)
-TIME_END = date(2021, 2, 8)
+TIME_END = date(2021, 3, 2)
 TIME_ARROW = [
     (TIME_INITIAL + timedelta(days=x)).strftime('%Y-%m-%d')
     for x in range((TIME_END - TIME_INITIAL).days + 1)
@@ -136,78 +137,71 @@ def get_axis_data(df: pd.DataFrame, max_idx: int):
     return x_axis, x_ticks, x_offset
 
 
-def daily_tests_per_thousand(x):
-    # The daily COVID tests has been steadily raising from
-    # 0 -> 7 per thousand from Jan20 to Jan21.
-    # (source: https://ourworldindata.org/coronavirus-testing)
-    time_span = (date(2021, 1, 1)-date(2020, 1, 1)).days
-    [y0, yf] = [0, 7.0]
+def daily_tests_per_thousand(x, x_ini: date, x_end: date, y_ini: float, y_end: float):
+    time_span = (x_end-x_ini).days
+    [y0, yf] = [y_ini, y_end]
     slope = (yf-y0) / time_span
     corr = y0 + slope * (x + 11)
     return corr
 
 
-def scaling_data_with_tests(x):
-    z = daily_tests_per_thousand(x)
+def scaling_data_with_tests(x, params: Config):
+    z = daily_tests_per_thousand(
+        x,
+        x_ini=date(2020, 1, 1), x_end=date(2021, 1, 1),
+        y_ini=0, y_end=params.general.tests_per_thousand
+    )
     corr = 1 + (1/z - 1/z[-1])
+
     return corr
 
 
 def fit_model(
-        file_path: str,
-        rename_columns: dict,
-        initial_guess: list,
-        bounds: list,
-        population: float,
-        scaling_data: bool,
-        control_delay: float,
-        delay_time: float,
-        inertial_time: float,
-        awareness_init: list,
+        params: Config,
         n_peaks: int,
-        model_type: SirModelType,
-        prediction_target: PredictionTarget,
         vaccination_rate: float,
         vaccination_begins: float,
         vaccination_effectiveness: float,
+        rename_columns: dict = None,
 ):
 
     df = read_data(
-        file=file_path,
+        file=params.general.data_file_path,
         rename_columns=rename_columns,
-        t_ini=TIME_INITIAL, t_end=TIME_END
+        t_ini=TIME_INITIAL,
+        t_end=TIME_END
     )[['date', 'new_cases']]
 
     y_total = df['new_cases']
     x_total = np.arange(0, len(y_total))
 
-    if scaling_data:
-        y_total *= scaling_data_with_tests(x_total)
+    if params.general.scaling_data:
+        y_total *= scaling_data_with_tests(x_total, params=params)
 
     idx_train_ini = 0
-    idx_train_end = df[df['date'] == "2020-09-15"].index[0]
+    idx_train_end = df[df['date'] == params.training.train_end_date].index[0]
 
     x = x_total[idx_train_ini:idx_train_end]
     y = y_total[idx_train_ini:idx_train_end].reset_index(drop=True)
 
     m = SirModels(
-        n_total=population,
+        n_total=params.general.total_population,
         n_infected=y[0],
-        model_type=model_type,
-        prediction_target=prediction_target
+        model_type=params.general.model_type,
+        prediction_target=params.general.prediction_target
     )
 
-    m.initial_guess = initial_guess
-    m.bounds = bounds
+    m.initial_guess = params.fitting.initial_guess
+    m.bounds = params.fitting.bounds
     m.vaccination_rate = vaccination_rate
     m.t_vaccination = vaccination_begins
     m.vaccination_effectiveness = vaccination_effectiveness
 
-    if model_type == SirModelType.Controlled:
-        m.control_delay = control_delay
-        m.delay_time = delay_time
-        m.inertial_time = inertial_time
-        m.measure_init = awareness_init
+    if params.general.model_type == SirModelType.Controlled:
+        m.control_delay = params.training.control_delay
+        m.delay_time = params.training.delay_time
+        m.inertial_time = params.training.inertial_time
+        m.measure_init = [params.first_wave.time]
         m.n_peaks = n_peaks
 
     m.fit(x, y)
@@ -219,23 +213,14 @@ def fit_model(
             'Y': y_total}
 
 
-def add_second_wave(m: SirModels, sc: bool):
+def add_wave(m: SirModels, params: Config, n_wave: int):
+    wave = params.second_wave
+    if n_wave == 3:
+        wave = params.third_wave
 
-    if sc:
-        m.measure_init = [m.measure_init[0], 300 - 1.8 * m.delay_time]
-        m.maturities = [m.maturities[0], 30 * 2.5]
-        m.scales = [m.scales[0], 0.6]
-    else:
-        m.measure_init = [m.measure_init[0], 300 - 1.1 * m.delay_time]
-        m.maturities = [m.maturities[0], 30 * 2.75]
-        m.scales = [m.scales[0], 0.85]
-
-
-def add_third_wave(m: SirModels, sc: bool, t0: int = 10):
-    if sc:
-        m.measure_init = m.measure_init + [360]
-        m.maturities = m.maturities + [30 * 3]
-        m.scales = m.scales + [0.7]
+    m.measure_init = m.measure_init + [wave.time]
+    m.maturities = m.maturities + [wave.maturity]
+    m.scales = m.scales + [wave.scale]
 
 
 def make_plot(
@@ -250,7 +235,7 @@ def make_plot(
         third_wave: bool,
         inset_plot: bool = False
 ):
-    max_months_2021 = 2 if not third_wave else 8
+    max_months_2021 = 3 if not third_wave else 8
 
     x_axis, x_ticks, x_offset = get_axis_data(
         df=df,
@@ -314,10 +299,7 @@ def make_plot(
     return fig, ax
 
 
-def run(model_type: SirModelType,
-        prediction_target: PredictionTarget,
-        population: float,
-        scaling_data: bool = True,
+def run(params: Config,
         export: bool = False,
         file_name: str = None,
         second_wave: bool = True,
@@ -325,30 +307,12 @@ def run(model_type: SirModelType,
         inset_plot: bool = False,
         vaccination_rate: float = None,
         vaccination_begins: float = None,
-        vaccination_effectiveness: float = None,
-        ):
-
-    if model_type == SirModelType.Controlled:
-        initial_guess = [0.4, 0.4, [120], [1]]
-        bounds = [[0, 0, 14, 0.65], [10, 10, 354, 1]]
-    elif model_type == SirModelType.Free:
-        initial_guess = [0.4, 0.4]
-        bounds = [[0, 0], [10, 10]]
+        vaccination_effectiveness: float = None):
 
     opt = fit_model(
-        file_path='data/uk_data.csv',
         rename_columns={'newCases': 'new_cases'},
-        population=population,
-        scaling_data=scaling_data,
-        model_type=model_type,
-        initial_guess=initial_guess,
-        bounds=bounds,
-        control_delay=14,
-        delay_time=7 * 3,
-        inertial_time=45,
-        awareness_init=[76],
+        params=params,
         n_peaks=1,
-        prediction_target=prediction_target,
         vaccination_rate=vaccination_rate,
         vaccination_begins=vaccination_begins,
         vaccination_effectiveness=vaccination_effectiveness,
@@ -361,14 +325,15 @@ def run(model_type: SirModelType,
     X = opt['X']
     Y = opt['Y']
 
-    if (model_type == SirModelType.Controlled) and second_wave:
-        add_second_wave(m=model, sc=scaling_data)
-        if third_wave:
-            add_third_wave(m=model, sc=scaling_data)
+    if (params.general.model_type == SirModelType.Controlled) and second_wave:
+        add_wave(m=model, params=params, n_wave=2)
+
+    if (params.general.model_type == SirModelType.Controlled) and third_wave:
+        add_wave(m=model, params=params, n_wave=3)
 
     fig, ax = make_plot(
         m=model,
-        m_type=model_type,
+        m_type=params.general.model_type,
         df=data,
         x_train=x_train,
         y_train=y_train,
