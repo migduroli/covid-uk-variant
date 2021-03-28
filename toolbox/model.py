@@ -173,7 +173,12 @@ class SirModels:
             (vaccination_effectiveness if vaccination_effectiveness else 0) * \
             self.total_population
 
-        ds = (q - 1) * beta * s * i / self.total_population - vaccinated
+        non_effective = (time > t_vaccination if t_vaccination else 0) * \
+            (vaccination_rate if vaccination_rate else 0) * \
+            ((1-vaccination_effectiveness) if vaccination_effectiveness else 0) * \
+            self.total_population
+
+        ds = (q - 1) * beta * s * i / self.total_population - vaccinated + non_effective
         di = (1 - q) * beta * s * i / self.total_population - alpha * i
         dr = alpha * i
         dv = vaccinated
@@ -344,7 +349,7 @@ class SirModels:
         )
 
         sigma = self._compute_error_from_trajectory(s=z[:, 0], i=z[:, 1], r=z[:, 2])
-        return [3 * sigma, -3 * sigma]
+        return [sigma, -sigma]
 
     def add_confidence_intervals(self, dt, z, ax, time_offset=None, limits=None):
         conf_interval = self._get_confidence_intervals(dt)

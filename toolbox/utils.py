@@ -9,7 +9,7 @@ from toolbox.model import (SirModels, SirModelType, PredictionTarget, read_data)
 from mpl_toolkits.axes_grid.inset_locator import (InsetPosition)
 
 TIME_INITIAL = date(2020, 1, 1)
-TIME_END = date(2021, 3, 2)
+TIME_END = date(2021, 3, 27)
 TIME_ARROW = [
     (TIME_INITIAL + timedelta(days=x)).strftime('%Y-%m-%d')
     for x in range((TIME_END - TIME_INITIAL).days + 1)
@@ -242,7 +242,7 @@ def make_plot(
         max_idx=max_months_2021
     )
 
-    dt = np.arange(0, x_axis[-2])
+    dt = np.arange(0, x_axis[-2] + 30)
 
     z = m.compute_trajectory(time=dt)
 

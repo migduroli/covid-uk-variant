@@ -39,5 +39,5 @@ for v in params.general.vaccination_rates:
         inset_plot=True,
         vaccination_rate=v,
         vaccination_begins=360,
-        vaccination_effectiveness=0.75
+        vaccination_effectiveness=0.7
     )
