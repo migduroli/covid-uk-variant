@@ -9,7 +9,7 @@ from toolbox.model import (SirModels, SirModelType, PredictionTarget, read_data)
 from mpl_toolkits.axes_grid.inset_locator import (InsetPosition)
 
 TIME_INITIAL = date(2020, 1, 1)
-TIME_END = date(2021, 3, 27)
+TIME_END = date(2021, 4, 2)
 TIME_ARROW = [
     (TIME_INITIAL + timedelta(days=x)).strftime('%Y-%m-%d')
     for x in range((TIME_END - TIME_INITIAL).days + 1)
@@ -49,8 +49,8 @@ def plot_init(
     ax.set_xticklabels(x_ticks, rotation=90)
     ax.bar(time_offset + x_train, y_train, color='b', alpha=0.4)
     ax.bar(time_offset + x_total[train_idx:], y_total[train_idx:], color='red', alpha=0.4)
-    ax.plot(time_offset + x_total, simulation[:total_idx + 1], '-', color='darkturquoise')
-    ax.plot(time_offset + dt[total_idx:], simulation[total_idx:], '--', color='darkturquoise')
+    ax.plot(time_offset + x_total, simulation[:total_idx + 1], '-', color='darkturquoise', linewidth=1)
+    ax.plot(time_offset + dt[total_idx:], simulation[total_idx:], '--', color='darkturquoise', linewidth=1)
     model.add_confidence_intervals(dt=dt, z=simulation, ax=ax, time_offset=time_offset)
     return fig, ax
 
@@ -116,7 +116,7 @@ def add_inset_plot(
         ax_inset.plot(
             time_offset + dt[limits[0]:limits[1]],
             simulation[limits[0]: limits[1]],
-            '-', color='darkturquoise'
+            '-', color='darkturquoise', linewidth=1
         )
 
         model.add_confidence_intervals(
@@ -159,9 +159,6 @@ def scaling_data_with_tests(x, params: Config):
 def fit_model(
         params: Config,
         n_peaks: int,
-        vaccination_rate: float,
-        vaccination_begins: float,
-        vaccination_effectiveness: float,
         rename_columns: dict = None,
 ):
 
@@ -193,9 +190,7 @@ def fit_model(
 
     m.initial_guess = params.fitting.initial_guess
     m.bounds = params.fitting.bounds
-    m.vaccination_rate = vaccination_rate
-    m.t_vaccination = vaccination_begins
-    m.vaccination_effectiveness = vaccination_effectiveness
+    m.vaccination_params = params.vaccination
 
     if params.general.model_type == SirModelType.Controlled:
         m.control_delay = params.training.control_delay
@@ -224,27 +219,21 @@ def add_wave(m: SirModels, params: Config, n_wave: int):
 
 
 def make_plot(
+        z: np.array,
+        dt: np.array,
         m: SirModels,
         m_type: SirModelType,
-        df: pd.DataFrame,
         x_train: np.array,
         y_train: np.array,
         x_total: np.array,
         y_total: np.array,
+        x_axis: list,
+        x_ticks: list,
+        x_offset: int,
         second_wave: bool,
         third_wave: bool,
         inset_plot: bool = False
 ):
-    max_months_2021 = 3 if not third_wave else 8
-
-    x_axis, x_ticks, x_offset = get_axis_data(
-        df=df,
-        max_idx=max_months_2021
-    )
-
-    dt = np.arange(0, x_axis[-2] + 30)
-
-    z = m.compute_trajectory(time=dt)
 
     train_idx = x_total.tolist().index(x_train[-1])
     total_idx = dt.tolist().index(x_total[-1])
@@ -299,23 +288,64 @@ def make_plot(
     return fig, ax
 
 
+def make_vaccination_plot(dt, vaccinated_success, vaccinated_fail, file_name):
+
+    immunised = pd.DataFrame({'x': vaccinated_success})
+    non_immunised = pd.DataFrame({'x': vaccinated_fail})
+
+    fig, ax = plt.subplots()
+    start_idx = 366
+
+    x = dt[start_idx:]
+    y1 = np.array(non_immunised[start_idx:].diff().x.fillna(0).to_list())
+    y2 = np.array(immunised[start_idx:].diff().x.fillna(0).to_list())
+
+    plt.bar(x, y1, color='b', alpha=0.6)
+    plt.plot(x, y1, 'b--', alpha=0.8, linewidth=1)
+    plt.plot([x[0], x[-1]], [np.min(y2[5:80]+y1[5:80]), np.min(y2[5:80]+y1[5:80])],
+             'k--', linewidth=1, alpha=0.5)
+    plt.plot(x, y2+y1, 'g--', alpha=0.8, linewidth=1.25)
+    plt.bar(x, y2, bottom=y1, color='g', alpha=0.6)
+
+    plt.xlim([366, 500])
+
+    fig.savefig(file_name)
+    return fig, ax
+
+
+def get_data_max_month(
+        df: pd.DataFrame,
+        date_col: str = 'date',
+        date_format: str='%Y-%m-%d') -> int:
+
+    m = pd.to_datetime(df[date_col].max(), format=date_format).month
+
+    return m
+
+
+def get_forecast_max_month(df: pd.DataFrame, third_wave: bool, default_max):
+    m = get_data_max_month(df)
+    return m if not third_wave else default_max
+
+
+def forecast(m: SirModels, x: list):
+    dt = np.arange(0, x[-1])
+    z = m.compute_trajectory(time=dt)
+    return dt, z
+
+
 def run(params: Config,
+        figure: bool = True,
         export: bool = False,
         file_name: str = None,
         second_wave: bool = True,
         third_wave: bool = False,
-        inset_plot: bool = False,
-        vaccination_rate: float = None,
-        vaccination_begins: float = None,
-        vaccination_effectiveness: float = None):
+        inset_plot: bool = False) -> dict:
 
     opt = fit_model(
         rename_columns={'newCases': 'new_cases'},
         params=params,
-        n_peaks=1,
-        vaccination_rate=vaccination_rate,
-        vaccination_begins=vaccination_begins,
-        vaccination_effectiveness=vaccination_effectiveness,
+        n_peaks=1
     )
 
     model: SirModels = opt['model']
@@ -331,22 +361,44 @@ def run(params: Config,
     if (params.general.model_type == SirModelType.Controlled) and third_wave:
         add_wave(m=model, params=params, n_wave=3)
 
-    fig, ax = make_plot(
-        m=model,
-        m_type=params.general.model_type,
-        df=data,
-        x_train=x_train,
-        y_train=y_train,
-        x_total=X,
-        y_total=Y,
-        second_wave=second_wave,
-        third_wave=third_wave,
-        inset_plot=inset_plot
-    )
-
-    fig.tight_layout()
-    if export:
-        fig.savefig(file_name)
-
     print(model)
-    return model
+
+    max_month = get_forecast_max_month(df=data, third_wave=third_wave, default_max=12)
+    x_axis, x_ticks, x_offset = get_axis_data(df=data, max_idx=max_month)
+    dt, sim = forecast(m=model, x=x_axis)
+
+    z = sim['new_cases']
+    vaccinated_success = sim['immunised']
+    vaccinated_fail = sim['non_immunised']
+
+    if params.vaccination.vaccination:
+        make_vaccination_plot(
+            dt=dt,
+            vaccinated_success=vaccinated_success,
+            vaccinated_fail=vaccinated_fail,
+            file_name=f'figs/vaccination_{str(params.vaccination.average_rate).replace(".", "")}.pdf'
+        )
+
+    if figure:
+        fig, ax = make_plot(
+            z=z,
+            dt=dt,
+            m=model,
+            m_type=params.general.model_type,
+            x_train=x_train,
+            y_train=y_train,
+            x_total=X,
+            y_total=Y,
+            x_axis=x_axis,
+            x_ticks=x_ticks,
+            x_offset=x_offset,
+            second_wave=second_wave,
+            third_wave=third_wave,
+            inset_plot=inset_plot
+        )
+
+        fig.tight_layout()
+        if export:
+            fig.savefig(file_name)
+
+    return {'model': model, 'dt': dt, 'cases': z}

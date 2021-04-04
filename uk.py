@@ -25,19 +25,25 @@ three_waves_no_vaccination = run(
     file_name=f'{output_file}-3waves.pdf',
     second_wave=True,
     third_wave=True,
-    inset_plot=True,
+    inset_plot=True
 )
 
-for v in params.general.vaccination_rates:
+for v in params.vaccination.rates:
     file_name = f'{output_file}-3waves-vaccination_{str(v).replace(".", "")}.pdf'
-    vaccination_models = run(
+
+    params.vaccination.average_rate = v
+    params.vaccination.vaccination = True
+
+    result = run(
         params=params,
+        figure=True,
         export=True,
         file_name=file_name,
         second_wave=True,
         third_wave=True,
-        inset_plot=True,
-        vaccination_rate=v,
-        vaccination_begins=360,
-        vaccination_effectiveness=0.7
+        inset_plot=True
     )
+
+    model = result['model']
+    dt = result['dt']
+    z = result['cases']

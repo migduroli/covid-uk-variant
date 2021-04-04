@@ -101,8 +101,8 @@ class SirModels:
             f"Social delay: {self.delay_time}\n" \
             f"Social inertia: {self.inertial_time}\n" \
             f"----------------------------------------------------\n" \
-            f"Vaccination rate: {self.vaccination_rate}\n" \
-            f"Vaccination begins: {self.t_vaccination}\n" \
+            f"Vaccination params: \n" \
+            f"{self.vaccination_params}\n" \
             f"----------------------------------------------------\n"
 
     def _initialise(
@@ -128,14 +128,20 @@ class SirModels:
         self.bounds = None
         self.delay_time = None
         self.inertial_time = None
-        self.vaccination_rate = None
-        self.vaccination_effectiveness = None
-        self.t_vaccination = None
+
+        # self.vaccination_rate = None
+        # self.vaccination_effectiveness = None
+        # self.t_vaccination = None
+        self.vaccination_params = None
 
         self.total_population = n_total
         self.initial_infected = n_infected
         self.control_delay = control_delay
-        self.initial_condition = [n_total - n_infected, n_infected, n_recovered, n_vaccinated]
+        self.initial_condition = [n_total - n_infected,
+                                  n_infected,
+                                  n_recovered,
+                                  n_vaccinated,
+                                  n_vaccinated]
         self.type = model_type
         self.prediction_target = prediction_target
         self.n_peaks = n_peaks
@@ -161,28 +167,25 @@ class SirModels:
             time: Union[float, np.array],
             beta: float,
             alpha: float,
-            q: Union[float, np.array] = 0,
-            t_vaccination: float = None,
-            vaccination_rate: float = None,
-            vaccination_effectiveness: float = None
+            q: Union[float, np.array] = 0
     ):
-        (s, i, r, v) = z
-        vaccinated = \
-            (time > t_vaccination if t_vaccination else 0) * \
-            (vaccination_rate if vaccination_rate else 0) * \
-            (vaccination_effectiveness if vaccination_effectiveness else 0) * \
-            self.total_population
+        (s, i, r, v, s_v) = z
+        vaccination_rate = self.vaccination_params.get_vaccines_per_day(
+            time=time, remaining=s
+        )
 
-        non_effective = (time > t_vaccination if t_vaccination else 0) * \
-            (vaccination_rate if vaccination_rate else 0) * \
-            ((1-vaccination_effectiveness) if vaccination_effectiveness else 0) * \
-            self.total_population
+        vaccinated = vaccination_rate * self.total_population
+        effectiveness = self.vaccination_params.effectiveness
 
-        ds = (q - 1) * beta * s * i / self.total_population - vaccinated + non_effective
-        di = (1 - q) * beta * s * i / self.total_population - alpha * i
+        def susceptible_flow(x: float):
+            return (q - 1) * beta * x * i / self.total_population
+
+        ds = susceptible_flow(s) - vaccinated
+        ds_v = susceptible_flow(s_v) + (1 - effectiveness) * vaccinated
+        di = (1 - q) * beta * (s + s_v) * i / self.total_population - alpha * i
         dr = alpha * i
-        dv = vaccinated
-        return np.array([ds, di, dr, dv])
+        dv = effectiveness * vaccinated
+        return np.array([ds, di, dr, dv, ds_v])
 
     def _sir_controlled_flow(
             self,
@@ -197,13 +200,8 @@ class SirModels:
                     self.measure_init,
                     measure_maturity, measure_scale,
                     self.delay_time, self.inertial_time)
-        (ds, di, dr, dv) = self._sir_flow(
-            z, time, beta, alpha, q,
-            t_vaccination=self.t_vaccination,
-            vaccination_rate=self.vaccination_rate,
-            vaccination_effectiveness=self.vaccination_effectiveness
-        )
-        return np.array([ds, di, dr, dv])
+        (ds, di, dr, dv, ds_v) = self._sir_flow(z, time, beta, alpha, q)
+        return np.array([ds, di, dr, dv, ds_v])
 
     # endregion
 
@@ -309,7 +307,34 @@ class SirModels:
             scales=self.scales
         )
 
-        return self._target_variable(z)
+        s = z[:, 0]
+        i = z[:, 1]
+        r = z[:, 2]
+        v = z[:, 3]
+        v_s = z[:, 4]
+
+        print(len(s))
+        print(range(len(s)))
+        print(r[len(s)-1])
+        [
+            print(
+                f't: {tt:.1f}; '
+                f'p: {ss + ii + rr + vv + vv_ss:.0f}/{self.total_population} '
+                f'| '
+                f's: {ss:.1f}, '
+                f'i: {ii:.1f}, '
+                f'r: {rr:.1f}, '
+                f'v: {vv:.1f}, '
+                f'v_s:{vv_ss:.1f}'
+            )
+            for tt, ss, ii, rr, vv, vv_ss in zip(time, s, i, r, v, v_s)
+        ]
+
+        return {
+            'new_cases': self._target_variable(z),
+            'immunised': z[:, 3],
+            'non_immunised': z[:, 4]
+        }
 
     def simulate_sir(self, x_data):
         return \
@@ -333,9 +358,10 @@ class SirModels:
             linewidth=1
         )
 
-    def _compute_error_from_trajectory(self, s, i, r):
+    def _compute_error_from_trajectory(self, s, i, s_v):
         return np.sqrt(
             np.square(s * i * self.beta_err / self.total_population)
+            + np.square(s_v * i * self.beta_err / self.total_population)
             + 2 * np.square(i * self.alpha_err)
         )
 
@@ -348,7 +374,7 @@ class SirModels:
             scales=self.scales
         )
 
-        sigma = self._compute_error_from_trajectory(s=z[:, 0], i=z[:, 1], r=z[:, 2])
+        sigma = self._compute_error_from_trajectory(s=z[:, 0], i=z[:, 1], s_v=z[:, 4])
         return [sigma, -sigma]
 
     def add_confidence_intervals(self, dt, z, ax, time_offset=None, limits=None):

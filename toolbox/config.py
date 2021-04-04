@@ -1,15 +1,13 @@
 from configparser import ConfigParser
 from toolbox.model import (SirModelType, PredictionTarget)
 
+import pandas as pd
+
 
 class GeneralParams:
     def __init__(self, config: ConfigParser):
         self.total_population = config.getfloat('default', 'population')
         self.tests_per_thousand = config.getfloat('default', 'tests_per_thousand')
-
-        self.vaccination_rates = [
-            float(x) for x in config['default']['vaccination_rates'].split(',')
-        ]
 
         self.model_type = SirModelType.Controlled \
             if config['default']['model'] == 'controlled' \
@@ -66,10 +64,57 @@ class FitParams:
         ]
 
 
+class VaccinationParams:
+    def __init__(self, config: ConfigParser):
+        self.population = config.getfloat('default', 'population')
+        self.actual_data = config.getboolean('vaccination', 'actual_data')
+        self.input_file = config['vaccination']['input_file']
+        self.start = config.getfloat('vaccination', 'start')
+        self.effectiveness = config.getfloat('vaccination', 'effectiveness')
+        self.rates = [
+            float(x) for x in config['vaccination']['rates'].split(',')
+        ]
+
+        self.average_rate = 0
+        self.vaccination = False
+        self.total_vaccines = 0
+
+        self.data = pd.read_csv(self.input_file)
+
+    def __str__(self):
+        return f"\t|-> vaccination?: {self.vaccination}\n" \
+            f"\t|-> actual data: {self.actual_data}\n" \
+            f"\t|-> input file: {self.input_file if self.actual_data else None}\n" \
+            f"\t|-> start: {None if self.actual_data else self.start}\n" \
+            f"\t|-> effectiveness: {self.effectiveness}\n" \
+            f"\t|-> average rate: {self.average_rate}"
+
+    def _get_average_rate_per_day(self, time: float):
+        return (time > self.start) * self.average_rate
+
+    def _get_actual_rate_per_day(self, time):
+        end_data_idx = self.data.shape[0] - 1
+        idx = int(time)
+        return (time <= end_data_idx) * self.data.iloc[min(idx, end_data_idx)].n + \
+               (time > end_data_idx) * self._get_average_rate_per_day(time)
+
+    def get_vaccines_per_day(self, time: float, remaining: float):
+
+        v = self.vaccination * (
+            (not self.actual_data) * self._get_average_rate_per_day(time) +
+            self.actual_data * self._get_actual_rate_per_day(time)
+        )
+
+        v = min(v, remaining)
+
+        return v
+
+
 class Config:
 
     def __init__(self, config):
         self.general = GeneralParams(config)
+        self.vaccination = VaccinationParams(config)
         self.training = TrainParams(config)
         self.fitting = FitParams(config)
         self.first_wave = FirstWaveParams(config)
