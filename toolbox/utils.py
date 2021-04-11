@@ -10,7 +10,7 @@ from toolbox.model import (SirModels, SirModelType, PredictionTarget, read_data)
 from mpl_toolkits.axes_grid.inset_locator import (InsetPosition)
 
 TIME_INITIAL = date(2020, 1, 1)
-TIME_END = date(2021, 4, 2)
+TIME_END = date(2021, 4, 30)
 TIME_ARROW = [
     (TIME_INITIAL + timedelta(days=x)).strftime('%Y-%m-%d')
     for x in range((TIME_END - TIME_INITIAL).days + 1)
@@ -332,7 +332,7 @@ def get_forecast_max_month(df: pd.DataFrame, third_wave: bool, default_max):
 
 
 def forecast(m: SirModels, x: list):
-    dt = np.arange(0, x[-1])
+    dt = np.arange(0, x[-2])
     z = m.compute_trajectory(time=dt)
     return dt, z
 
