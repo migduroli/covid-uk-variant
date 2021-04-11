@@ -5,8 +5,8 @@ config.read('configs/uk.ini')
 
 import pandas as pd
 
-cases = pd.read_csv('data/uk_data.csv')
-data = pd.read_csv('data/raw_vaccination_data_uk.csv')
+cases = pd.read_csv('data/uk_data_gov.csv')
+data = pd.read_csv('data/uk_vaccination_data_gov_raw.csv')
 
 total_population_uk = config.getfloat('default', 'population')
 
@@ -22,4 +22,4 @@ dates = pd.DataFrame({'date': pd.date_range(start=cases.date.min(), end=cases.da
 
 df = dates.merge(df, how='left', on='date').fillna(0)
 
-df.to_csv('data/vaccination_data_uk.csv', index=False)
+df.to_csv('data/uk_vaccination_data_gov.csv', index=False)
