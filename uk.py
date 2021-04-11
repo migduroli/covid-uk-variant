@@ -1,7 +1,11 @@
+import logging
+
 from configparser import ConfigParser
 
 from toolbox.utils import (run)
 from toolbox.config import (Config)
+
+logging.basicConfig(level=logging.INFO)
 
 config = ConfigParser()
 config.read('configs/uk.ini')
@@ -9,6 +13,15 @@ config.read('configs/uk.ini')
 params = Config(config)
 
 output_file = 'figs/uk-controlled-scaled-new_cases'
+
+# one_wave = run(
+#     params=params,
+#     export=True,
+#     file_name=f'{output_file}-1wave.pdf',
+#     second_wave=False,
+#     third_wave=False,
+#     inset_plot=True,
+# )
 
 two_waves = run(
     params=params,

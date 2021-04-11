@@ -51,16 +51,31 @@ class ThirdWaveParams:
 
 class FitParams:
     def __init__(self, config):
+        model_type = SirModelType.Controlled \
+            if config['default']['model'] == 'controlled' \
+            else SirModelType.Free
+
+        self._initialise(config, model_type)
+
+    def _initialise(self, config, model_type: SirModelType):
+        section = 'controlled' \
+                if model_type == SirModelType.Controlled \
+                else 'free'
+
         self.initial_guess = [
-            config.getfloat(section='controlled', option='beta_ini'),
-            config.getfloat(section='controlled', option='alpha_ini'),
-            [float(x) for x in config['controlled']['maturities_ini'].split(',')],
-            [float(x) for x in config['controlled']['scales_ini'].split(',')]
+            config.getfloat(section=section, option='beta_ini'),
+            config.getfloat(section=section, option='alpha_ini'),
         ]
 
+        if model_type == SirModelType.Controlled:
+            self.initial_guess += [
+                [float(x) for x in config[section]['maturities_ini'].split(',')],
+                [float(x) for x in config[section]['scales_ini'].split(',')]
+            ]
+
         self.bounds = [
-            [float(x) for x in config['controlled']['lower_bounds'].split(',')],
-            [float(x) for x in config['controlled']['upper_bounds'].split(',')]
+            [float(x) for x in config[section]['lower_bounds'].split(',')],
+            [float(x) for x in config[section]['upper_bounds'].split(',')]
         ]
 
 

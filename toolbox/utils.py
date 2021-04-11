@@ -1,6 +1,7 @@
-import pandas as pd
-import numpy as np
+import logging
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 from toolbox.config import (Config)
 from datetime import (date, timedelta)
@@ -14,6 +15,8 @@ TIME_ARROW = [
     (TIME_INITIAL + timedelta(days=x)).strftime('%Y-%m-%d')
     for x in range((TIME_END - TIME_INITIAL).days + 1)
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def setup_matplotlib(
@@ -361,7 +364,7 @@ def run(params: Config,
     if (params.general.model_type == SirModelType.Controlled) and third_wave:
         add_wave(m=model, params=params, n_wave=3)
 
-    print(model)
+    logger.info(model)
 
     max_month = get_forecast_max_month(df=data, third_wave=third_wave, default_max=12)
     x_axis, x_ticks, x_offset = get_axis_data(df=data, max_idx=max_month)

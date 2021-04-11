@@ -1,4 +1,5 @@
 import itertools
+import logging
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,8 @@ from typing import Union, Any
 from scipy.special import erf
 from scipy.integrate import odeint
 from scipy.optimize import curve_fit
+
+logger = logging.getLogger(__name__)
 
 
 # region Utils:
@@ -313,11 +316,8 @@ class SirModels:
         v = z[:, 3]
         v_s = z[:, 4]
 
-        print(len(s))
-        print(range(len(s)))
-        print(r[len(s)-1])
         [
-            print(
+            logger.debug(
                 f't: {tt:.1f}; '
                 f'p: {ss + ii + rr + vv + vv_ss:.0f}/{self.total_population} '
                 f'| '
