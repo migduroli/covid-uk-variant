@@ -50,8 +50,8 @@ def plot_init(
     ax.grid(b=True, which='major', color='#666666', linestyle='--', alpha=0.25, axis='x')
     ax.set_xticks(x_axis[:-1])
     ax.set_xticklabels(x_ticks, rotation=90)
-    ax.bar(time_offset + x_train, y_train, color='b', alpha=0.4)
-    ax.bar(time_offset + x_total[train_idx:], y_total[train_idx:], color='red', alpha=0.4)
+    ax.bar(time_offset + x_train, y_train, color='b', alpha=0.3)
+    ax.bar(time_offset + x_total[train_idx:], y_total[train_idx:], color='red', alpha=0.3)
     ax.plot(time_offset + x_total, simulation[:total_idx + 1], '-', color='darkturquoise', linewidth=1)
     ax.plot(time_offset + dt[total_idx:], simulation[total_idx:], '--', color='darkturquoise', linewidth=1)
     model.add_confidence_intervals(dt=dt, z=simulation, ax=ax, time_offset=time_offset)
@@ -101,7 +101,7 @@ def add_inset_plot(
 
         if not third_wave:
             color_style = 'blue'
-            limits = [0, int(0.75 * train_idx)]
+            limits = [int(0.2 * train_idx), int(0.75 * train_idx)]
             ax_inset.set_xticks(x_axis[:8:2])
             ax_inset.set_xticklabels(x_ticks[:8:2], rotation=90)  # plt.show()
         if third_wave:
@@ -113,7 +113,8 @@ def add_inset_plot(
         ax_inset.bar(
             time_offset + dt[limits[0]: limits[1]],
             y_total[limits[0]: limits[1]],
-            color=color_style, alpha=0.4
+            color=color_style,
+            alpha=0.3,
         )
 
         ax_inset.plot(
@@ -303,12 +304,12 @@ def make_vaccination_plot(dt, vaccinated_success, vaccinated_fail, file_name):
     y1 = np.array(non_immunised[start_idx:].diff().x.fillna(0).to_list())
     y2 = np.array(immunised[start_idx:].diff().x.fillna(0).to_list())
 
-    plt.bar(x, y1, color='b', alpha=0.6)
-    plt.plot(x, y1, 'b--', alpha=0.8, linewidth=1)
+    plt.bar(x, y1, color='b', alpha=0.4)
+    plt.plot(x, y1, 'b-', alpha=0.3, linewidth=0.5)
     plt.plot([x[0], x[-1]], [np.min(y2[5:80]+y1[5:80]), np.min(y2[5:80]+y1[5:80])],
-             'k--', linewidth=1, alpha=0.5)
-    plt.plot(x, y2+y1, 'g--', alpha=0.8, linewidth=1.25)
-    plt.bar(x, y2, bottom=y1, color='g', alpha=0.6)
+             'k-', linewidth=0.5, alpha=0.3)
+    plt.plot(x, y2+y1, 'g-', alpha=0.3, linewidth=0.5)
+    plt.bar(x, y2, bottom=y1, color='g', alpha=0.4)
 
     plt.xlim([366, 500])
 
@@ -319,7 +320,7 @@ def make_vaccination_plot(dt, vaccinated_success, vaccinated_fail, file_name):
 def get_data_max_month(
         df: pd.DataFrame,
         date_col: str = 'date',
-        date_format: str='%Y-%m-%d') -> int:
+        date_format: str = '%Y-%m-%d') -> int:
 
     m = pd.to_datetime(df[date_col].max(), format=date_format).month
 
