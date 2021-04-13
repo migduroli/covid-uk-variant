@@ -5,8 +5,8 @@ config.read('configs/uk.ini')
 
 import pandas as pd
 
-cases = pd.read_csv('data/uk_data_gov.csv')
-data = pd.read_csv('data/uk_vaccination_data_gov_raw.csv')
+cases = pd.read_csv('../data/uk_data_gov.csv')
+data = pd.read_csv('../data/uk_vaccination_data_gov_raw.csv')
 
 total_population_uk = config.getfloat('default', 'population')
 
