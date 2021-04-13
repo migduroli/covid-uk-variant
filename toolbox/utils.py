@@ -298,22 +298,54 @@ def make_vaccination_plot(dt, vaccinated_success, vaccinated_fail, file_name):
     non_immunised = pd.DataFrame({'x': vaccinated_fail})
 
     fig, ax = plt.subplots()
-    start_idx = 366
+    start_idx = 366 - 11
 
     x = dt[start_idx:]
     y1 = np.array(non_immunised[start_idx:].diff().x.fillna(0).to_list())
     y2 = np.array(immunised[start_idx:].diff().x.fillna(0).to_list())
 
-    plt.bar(x, y1, color='b', alpha=0.4)
-    plt.plot(x, y1, 'b-', alpha=0.3, linewidth=0.5)
-    plt.plot([x[0], x[-1]], [np.min(y2[5:80]+y1[5:80]), np.min(y2[5:80]+y1[5:80])],
-             'k-', linewidth=0.5, alpha=0.3)
-    plt.plot(x, y2+y1, 'g-', alpha=0.3, linewidth=0.5)
-    plt.bar(x, y2, bottom=y1, color='g', alpha=0.4)
+    max_idx = 31 + 28 + 31 + 30 - 19
+    ax.bar(x[0:max_idx], y1[0:max_idx], color='b', alpha=0.4)
+    ax.bar(x[max_idx:], y1[max_idx:], color='b', alpha=0.2)
 
-    plt.xlim([366, 500])
+    ax.bar(x[0:max_idx], y2[0:max_idx], bottom=y1[0:max_idx], color='g', alpha=0.4)
+    ax.bar(x[max_idx:], y2[max_idx:], bottom=y1[max_idx:], color='g', alpha=0.2)
 
+    y_target = int(np.ceil(round((y2[120] + y1[120])/10_000)) * 10)
+    ax.text(start_idx + 6,
+            y_target * 1_000 - 500,
+            f'{y_target}k',
+            color='gray',
+            fontsize=7,
+            horizontalalignment='center',
+            verticalalignment='bottom')
+
+    ax.plot([x[0], x[-1]], [y_target * 1000, y_target * 1000], 'k--', linewidth=0.5, alpha=0.3)
+
+    months = Months.List.Lengths(2021)
+    max_month_idx = 5
+    months_ticks = (np.cumsum(months[0:max_month_idx]) + (start_idx - 31)).tolist()
+
+    x_zero = start_idx
+    x_end = months_ticks[-1]
+    y_zero = 0
+    y_end = 850_000
+    ax.set_xlim([x_zero, x_end])
+    ax.set_ylim([y_zero, y_end])
+
+    x_ticks_labels = [f'{m}-2021' for m in Months.List.Names[0:max_month_idx]]
+
+    x_ticks = months_ticks
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(x_ticks_labels, rotation=90)
+
+    y_ticks = np.arange(y_zero, y_end, 200_000).tolist()
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(y_ticks)
+
+    fig.tight_layout()
     fig.savefig(file_name)
+
     return fig, ax
 
 
