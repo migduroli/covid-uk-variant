@@ -14,6 +14,8 @@ def setup_matplotlib(
     plt.rc('font', size=font_size)
     plt.rcParams['figure.figsize'] = fig_size
     plt.rcParams['figure.dpi'] = fig_dpi
+    plt.rc('text', usetex=True)
+
 
 def find_percentile(data: DataFrame, col: str, n: int, eps: float=0.01):
     y = data[col]
@@ -44,7 +46,7 @@ ax.plot([m_pos.ct_value, m_pos.ct_value], [0, 20], '--', color='blue')
 #         rotation=90)
 ax.set_xlim([8, 40])
 ax.set_ylim([0, 18])
-ax.set_ylabel(r"$N$")
+
 ax.set_xlabel(r"$C_T$ value")
 fig.tight_layout()
 plt.savefig('figs/ct-value.pdf')
