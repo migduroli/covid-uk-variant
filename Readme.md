@@ -6,6 +6,8 @@
 The running of the script `uk.py` will produce the figures showed in the manuscript.
 These figures will be saved in PDF format inside the [figs](figs) folder.
 
+![](slides/sir-covid-uk.png "Effect of lockdown and vaccination")
+
 ## Brief description
 The script here presented runs the following steps:
 
