@@ -1,7 +1,7 @@
 ## Summary
  This repository contains the code required for the analysis of the manuscripts:
- * [Understanding soaring coronavirus cases and the effect of contagion policies in the UK](https://doi.org/10.1101/2021.01.30.21250822).
- * [More than a year after the onset of the CoVid-19 pandemic in the UK: lessons learned from a minimalistic model capturing essential aspects including social awareness and policy making]()
+ * [Understanding soaring coronavirus cases and the effect of contagion policies in the UK](https://doi.org/10.3390/vaccines9070735).
+ * [More than a year after the onset of the CoVid-19 pandemic in the UK: lessons learned from a minimalistic model capturing essential aspects including social awareness and policy making](https://doi.org/10.1101/2021.04.15.21255510)
 
 The running of the script `uk.py` will produce the figures showed in the manuscript.
 These figures will be saved in PDF format inside the [figs](figs) folder.
